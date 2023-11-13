@@ -71,30 +71,40 @@ def milk_times(df, n_splits=48, n_before=2, n_after=4):
 df_milk_1, df_milk_2 = milk_times(df_g2)
 
 #%%
-def please_work(df, tags, start_day, x_divide=1670, length=250):
+def entry_exit(df, tags, start_day, x_divide=1670, length=250):
     low_lim = x_divide-length
     high_lim = x_divide+length
     entry_times = {tag:None for tag in tags}
     exit_times = {tag:None for tag in tags}
     
+    tag_count = df['tag_id'].value_counts()
+    
     pos_mask = (df.y < high_lim) & (df.y > low_lim) & (df.x < high_lim) & (df.x > low_lim)
     df = df.loc[pos_mask]
     for cow in tags:    
-        single_cow = df.loc[df['tag_id'] == cow].copy()
-        if not single_cow.empty:
-            entry_times[cow] = time_of_day(start_day, single_cow['time'].iloc[0])
-            exit_times[cow] = time_of_day(start_day, single_cow['time'].iloc[-1])
-            
-    return entry_times, exit_times
+        if tag_count[cow] > 1000:
+            single_cow = df.loc[df['tag_id'] == cow].copy()
+            entry_times[cow] = single_cow['time'].iloc[0]
+            exit_times[cow] = single_cow['time'].iloc[-1]
+    sorted_entry = dict(sorted(entry_times.items(), key=lambda x:x[1]))
+    sorted_exit = dict(sorted(exit_times.items(), key=lambda x:x[1]))
+    return sorted_entry, sorted_exit
 
-entry_times, exit_times = please_work(df_milk_1, tags_g2, start_day)
+entry_times, exit_times = entry_exit(df_milk_2, tags_g2, start_day)
 
 #%%
-def write_to_file(filename, tags, entry_times, exit_times):
+def write_to_file(filename, tags, entry_times, exit_times, start_day):
     with open(filename, 'w') as f:
         f.write(f'Tag     \t Entry time       \t Exit time \n')
-        for tag in tags:
-            f.write(f'{tag} \t {entry_times[tag]} \t {exit_times[tag]} \n')
+        for tag in entry_times.keys():
+            entry_time = time_of_day(start_day, entry_times[tag])
+            exit_time = time_of_day(start_day, exit_times[tag])
+            f.write(f'{tag} \t {entry_time} \t {exit_time} \n')
     return
 
-write_to_file('results_test.txt', tags_g2, entry_times, exit_times)
+write_to_file('results_test_g2_2.txt', tags_g2, entry_times, exit_times, start_day)
+#%%
+
+plot_cow(df_milk_1, tags_g2[-1], barn_filename)
+
+
