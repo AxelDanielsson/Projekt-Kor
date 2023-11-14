@@ -12,6 +12,7 @@ from pycowview.animation import animate_cows
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
 from datetime import datetime, timedelta
 
 #%%
@@ -112,18 +113,18 @@ def first_entry(entry_times):
 
 milk_start = first_entry(entry_times)
 #%%
-def before_milk_pos(df, milk_start, tags, minutes=5):
+def before_milk_pos(df, milk_start, tags, minutes=1, minutes_before=30):
     conv = 0.5*(1000*60)
-    milk_start = milk_start - (30*60*1000)
+    milk_start = milk_start - (minutes_before*60*1000)
     time_mask = (
     (df['time'] > milk_start - (minutes * conv)) &
     (df['time'] < milk_start + (minutes * conv)) &
     (df['tag_id'].isin(tags))
     )
     df_time = df.loc[time_mask]
-    avg_pos = df_time.groupby('tag_id')[['x', 'y']].mean()
+    avg_pos = df_time.groupby('tag_id')[['x', 'y']].mean().reset_index()
     return avg_pos
-df_avg_pos = before_milk_pos(df_g2, milk_start, list(entry_times.keys()))
+df_avg_pos = before_milk_pos(df_g2, milk_start, list(entry_times.keys()), minutes_before=20)
 #%%
 def plot_gantt(entry_times, exit_times, start_day):
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -135,19 +136,46 @@ def plot_gantt(entry_times, exit_times, start_day):
                edgecolor='black')
     plt.title('Gantt Chart')
     plt.yticks([])
-    plt.xticks([4,5,6,7])
+    plt.xticks([4,5,6,7], ['04:00', '05:00', '06:00', '07:00'])
     plt.grid(True)
     plt.show()
     return
 plot_gantt(entry_times, exit_times, start_day)
 #%%
-def plot_pos(df_pos, barn_filename):
+def plot_pos(df_pos, tags, barn_filename):
     fig, ax = plot_barn(barn_filename)
-    for row in df_pos.iterrows():
-        plt.scatter(row[1]['x'].values, row[1]['y'].values)
+    df_plot_red = df_pos.loc[df_pos['tag_id'].isin(tags)]
+    df_plot_grey = df_pos.loc[~df_pos['tag_id'].isin(tags)]
+    for row in df_plot_grey.iterrows():
+        plt.scatter(row[1]['x'], row[1]['y'], color='grey', s=20)
+    for row in df_plot_red.iterrows():
+        plt.scatter(row[1]['x'], row[1]['y'], color='r', s=35)
+    return
+plot_pos(df_avg_pos, [2432652, 2426250, 2428364, 2428706, 2433150], barn_filename)
+#%%
+def plot_pos_animation(df, high_tags, tags, milk_start):
+    fig, ax = plot_barn(barn_filename)
+    
+    
+    
+    red_scatter = ax.scatter([], [], color='r', s=35)
+    grey_scatter = ax.scatter([], [], color='grey', s=20)
+    
+    def update(frame):
+        df_pos = before_milk_pos(df, milk_start, tags, minutes_before=frame)
+        df_plot_red = df_pos.loc[df_pos['tag_id'].isin(high_tags)]
+        df_plot_grey = df_pos.loc[~df_pos['tag_id'].isin(high_tags)]
+        
+        red_scatter.set_offsets(df_plot_red[['x', 'y']].values)
+        grey_scatter.set_offsets(df_plot_grey[['x', 'y']].values)
+        return red_scatter, grey_scatter
+    
+    animation = FuncAnimation(fig, update, frames=range(25, -16, -1), interval=250, blit=True)
+    animation.save('animations/test.gif', writer='imagemagick')
     plt.show()
     return
-plot_pos(df_avg_pos, barn_filename)
+plot_pos_animation(df_g2, [2432652, 2426250, 2428364, 2428706, 2433150], tags_g2, milk_start)
+
 #%%
 plot_cow(df_milk_1, tags_g2[-1], barn_filename)
 
