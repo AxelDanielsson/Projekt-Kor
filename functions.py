@@ -6,6 +6,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as pat
 
+
+# function from project cowview.data
+# reads csv-file
 def csv_read_FA(filename, nrows):
     if nrows == 0:
         df = pd.read_csv(filename, header=None)
@@ -14,6 +17,8 @@ def csv_read_FA(filename, nrows):
     df.columns = ['data_entity', 'tag_id', 'tag_string', 'time', 'x', 'y', 'z']
     return df
 
+
+# function from project cowview.plot
 # function to plot the outline of the barn
 def plot_barn(filename):
     df = pd.read_csv(filename, skiprows=0, sep=';', header=0)
@@ -37,6 +42,8 @@ def plot_barn(filename):
     ax.set_ylim(y_1[0] - 2000, y_2[0] + 2000)
     return fig, ax
 
+
+# function from project cowview.extras
 # extract position data from dataframe
 def positions(df):
     x = list(df['x'])
@@ -44,6 +51,7 @@ def positions(df):
     z = list(df['z'])
     return x,y,z
 
+# function from project cowview.plot
 # function to plot the position of a cow (based on tag_id) for FA-data
 def plot_cow(df, tag_id, filename_barn):
     fig, ax = plot_barn(filename_barn)
@@ -59,6 +67,7 @@ def plot_cow(df, tag_id, filename_barn):
     plt.show()
 
 
+# function from project cowview.animation
 def animate_cows(df, cowID_1, cowID_2, barn_filename, save_path='n'):
 
     cow_1 = df.loc[df['tag_id'] == cowID_1]
@@ -196,3 +205,37 @@ def animate_cows(df, cowID_1, cowID_2, barn_filename, save_path='n'):
         plt.show()
 
     run_animation()
+
+# Function compares the placement of cows in the entry que with the exit que.
+# It takes 2 dict of tags with entry and exit times. The span determine how many cows in front of or behind in
+# the exit que the entry placement is compared with
+def compare_entry_exit(entrytags, exittags, span):
+    match = 0
+    nomatch = 0
+    i = 0
+    for tag in entrytags:
+        if span == 0:
+            if tag == exittags[i]:
+                match += 1
+            else:
+                nomatch += 1
+        if span != 0:
+            if i < span:
+                if tag in exittags[0:i + span]:
+                    match += 1
+                else:
+                    nomatch += 1
+            if i >= span:
+                if i + span > len(exittags):
+                    if tag in exittags[i - span:i]:
+                        match += 1
+                    else:
+                        nomatch += 1
+                else:
+                    if tag in exittags[i - span:i + span]:
+                        match += 1
+                    else:
+                        nomatch += 1
+        i += 1
+    print('matches with span ', span, ':', match)
+    print('not matching with span ', span, ':', nomatch)
