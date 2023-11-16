@@ -40,7 +40,7 @@ tags_cow = [tag for tag in tags if tag not in stationary_list]
 #%%
 def time_of_day(start_day, time_to_convert, time_zone=2):
     seconds_diff = (time_to_convert-start_day)/1_000
-    time_of_day = datetime.timedelta(seconds=seconds_diff+time_zone*3_600)
+    time_of_day = timedelta(seconds=seconds_diff+time_zone*3_600)
     return time_of_day
 start_day = df['time'].iloc[0]
 
@@ -74,15 +74,17 @@ def milk_times(df, n_splits=48, n_before=2, n_after=4):
 df_milk_1, df_milk_2 = milk_times(df_g2)
 
 #%%
-def entry_exit(df, tags, start_day, x_divide=1670, length=250, tag_lim=1000):
+def entry_exit(df, tags, start_day, x_divide=1670, length=350, tag_lim=1000):
     low_lim = x_divide-length
     high_lim = x_divide+length
     tag_count = df['tag_id'].value_counts()
-    active_tags = [tag for tag in tags if tag_count[tag] > tag_lim]
+    max_y = df.groupby('tag_id')['y'].max()
+    active_tags = [tag for tag in tags if tag_count[tag] > tag_lim and max_y[tag] > 3000]
     entry_times = {tag:None for tag in active_tags}
     exit_times = {tag:None for tag in active_tags}
     
-    pos_mask = (df.y < high_lim) & (df.x < high_lim) & (df.x > low_lim)
+    
+    pos_mask = (df.y < 2100) & (df.x < high_lim) & (df.x > low_lim)
     df = df.loc[pos_mask]
     for cow in active_tags:    
         single_cow = df.loc[df['tag_id'] == cow].copy()
@@ -94,6 +96,18 @@ def entry_exit(df, tags, start_day, x_divide=1670, length=250, tag_lim=1000):
 
 entry_times, exit_times = entry_exit(df_milk_1, tags_g2, start_day)
 
+
+#%%
+
+def get_number_in_order(times):
+    number_in_order = {tag:None for tag in times.keys()}
+    for i, tag in enumerate(times.keys()):
+        number_in_order[tag] = i+1
+    return number_in_order
+
+entry_order = get_number_in_order(entry_times)
+
+
 #%%
 def write_to_file(filename, tags, entry_times, exit_times, start_day):
     with open(filename, 'w') as f:
@@ -104,7 +118,7 @@ def write_to_file(filename, tags, entry_times, exit_times, start_day):
             f.write(f'{tag} \t {entry_time} \t {exit_time} \n')
     return
 
-write_to_file('results_test_g2_2.txt', tags_g2, entry_times, exit_times, start_day)
+write_to_file('overlap2.txt', tags_g2, entry_times, exit_times, start_day)
 
 
 #%%
@@ -112,8 +126,12 @@ def first_entry(entry_times):
     return next(iter(entry_times.items()))[1]
 
 milk_start = first_entry(entry_times)
+
+def last_exit(exit_times):
+    return list(exit_times.values())[-1]
+milk_end = last_exit(exit_times)
 #%%
-def before_milk_pos(df, milk_start, tags, minutes=1, minutes_before=30):
+def before_milk_pos(df, milk_start, tags, minutes=0.5, minutes_before=30):
     conv = 0.5*(1000*60)
     milk_start = milk_start - (minutes_before*60*1000)
     time_mask = (
@@ -124,7 +142,7 @@ def before_milk_pos(df, milk_start, tags, minutes=1, minutes_before=30):
     df_time = df.loc[time_mask]
     avg_pos = df_time.groupby('tag_id')[['x', 'y']].mean().reset_index()
     return avg_pos
-df_avg_pos = before_milk_pos(df_g2, milk_start, list(entry_times.keys()), minutes_before=20)
+df_avg_pos = before_milk_pos(df_g1, milk_start, list(entry_times.keys()))
 #%%
 def plot_gantt(entry_times, exit_times, start_day):
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -134,9 +152,9 @@ def plot_gantt(entry_times, exit_times, start_day):
                width=(exit_times[tag]-entry_times[tag])/(1000*60*60),
                color='black',
                edgecolor='black')
-    plt.title('Gantt Chart')
+    plt.title('Entry and Exit Times, Evening Group 2', fontsize=20)
     plt.yticks([])
-    plt.xticks([4,5,6,7], ['04:00', '05:00', '06:00', '07:00'])
+    plt.xticks([18, 19, 20], ['16:00', '17:00', '18:00'], fontsize=18)
     plt.grid(True)
     plt.show()
     return
@@ -144,39 +162,72 @@ plot_gantt(entry_times, exit_times, start_day)
 #%%
 def plot_pos(df_pos, tags, barn_filename):
     fig, ax = plot_barn(barn_filename)
+    
     df_plot_red = df_pos.loc[df_pos['tag_id'].isin(tags)]
     df_plot_grey = df_pos.loc[~df_pos['tag_id'].isin(tags)]
     for row in df_plot_grey.iterrows():
         plt.scatter(row[1]['x'], row[1]['y'], color='grey', s=20)
     for row in df_plot_red.iterrows():
-        plt.scatter(row[1]['x'], row[1]['y'], color='r', s=35)
+        plt.scatter(row[1]['x'], row[1]['y'], color='b', s=35)
+        
+    plt.title('Positions 30 minutes before first cow enters milking station')    
+    
+    plt.yticks([])
+    plt.xticks([])
     return
-plot_pos(df_avg_pos, [2432652, 2426250, 2428364, 2428706, 2433150], barn_filename)
-#%%
-def plot_pos_animation(df, high_tags, tags, milk_start):
+plot_pos(df_avg_pos, [2421773, 2428348, 2431954, 2427562, 2423369], barn_filename)
+
+ #%%
+def plot_pos_animation(df, high_tags, low_tags, tags, milk_start):
     fig, ax = plot_barn(barn_filename)
     
     
     
     red_scatter = ax.scatter([], [], color='r', s=35)
+    blue_scatter = ax.scatter([], [], color='b', s=35)
     grey_scatter = ax.scatter([], [], color='grey', s=20)
+    
+    time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, color='black')
     
     def update(frame):
         df_pos = before_milk_pos(df, milk_start, tags, minutes_before=frame)
         df_plot_red = df_pos.loc[df_pos['tag_id'].isin(high_tags)]
-        df_plot_grey = df_pos.loc[~df_pos['tag_id'].isin(high_tags)]
+        df_plot_blue = df_pos.loc[df_pos['tag_id'].isin(low_tags)]
+        df_plot_grey = df_pos.loc[~df_pos['tag_id'].isin(low_tags) & 
+                                  ~df_pos['tag_id'].isin(high_tags)]
         
-        red_scatter.set_offsets(df_plot_red[['x', 'y']].values)
+        
         grey_scatter.set_offsets(df_plot_grey[['x', 'y']].values)
+        red_scatter.set_offsets(df_plot_red[['x', 'y']].values)
+        blue_scatter.set_offsets(df_plot_blue[['x', 'y']].values)
+        time_text.set_text(f'Minutes before/after first entry: {frame}') 
+        plt.xticks([])
+        plt.yticks([])
         return red_scatter, grey_scatter
     
-    animation = FuncAnimation(fig, update, frames=range(25, -16, -1), interval=250, blit=True)
-    animation.save('animations/test.gif', writer='imagemagick')
+    animation = FuncAnimation(fig, update, frames=range(25, -126, -1), interval=350, blit=True)
+    animation.save('animations/test_exlong.gif')
     plt.show()
     return
-plot_pos_animation(df_g2, [2432652, 2426250, 2428364, 2428706, 2433150], tags_g2, milk_start)
+plot_pos_animation(df_g1, [2427905, 2427616, 2432089, 2428902, 2428776], 
+                   [2421773, 2428348, 2431954, 2427562, 2423369],
+                   tags, milk_start)
 
 #%%
-plot_cow(df_milk_1, tags_g2[-1], barn_filename)
+def cum_plot(times):
+    conv = 1/(1000*60)
+    start = int(first_entry(times)*conv)
+    end = int(last_exit(times)*conv)
+    x = np.linspace(start, end, end-start)
+    y = [sum(value * conv< x_value  for value in times.values()) for x_value in x] 
+    plt.plot(x,y)
+    return
+cum_plot(exit_times)
+    
+
+
+#%%
+
+plot_cow(df_milk_1, 2417161, barn_filename)
 
 
