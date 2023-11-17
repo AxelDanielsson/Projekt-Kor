@@ -206,6 +206,13 @@ def animate_cows(df, cowID_1, cowID_2, barn_filename, save_path='n'):
 
     run_animation()
 
+# function from project cowview.manipulate
+def is_inside(pos, bed):
+    if bed['x1'] < pos[0] < bed['x3'] and bed['y1'] < pos[1] < bed['y2']:
+        return True
+    else:
+        return False
+
 # Function compares the placement of cows in the entry que with the exit que.
 # It takes 2 dict of tags with entry and exit times. The span determine how many cows in front of or behind in
 # the exit que the entry placement is compared with

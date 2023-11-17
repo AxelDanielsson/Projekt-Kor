@@ -5,10 +5,7 @@ Created on Fri Nov 10 16:24:30 2023
 @author: folke
 """
 import matplotlib.pyplot as plt
-from pycowview.data import csv_read_FA
-from pycowview.plot import plot_cow
-from pycowview.plot import plot_barn
-from pycowview.manipulate import is_inside
+from functions import *
 import pandas as pd 
 import numpy as np
 
@@ -87,7 +84,7 @@ start_day = df['time'].iloc[0]
 #%%
 
 def divide_groups(df, tags, x_divide=1670):
- """
+    """
     divides cows in two groups
 
     Parameters
@@ -109,7 +106,6 @@ def divide_groups(df, tags, x_divide=1670):
         DESCRIPTION.
     tags_g2 : np.array
         DESCRIPTION.
-
     """
     x_avg = df[1_000_000:].groupby('tag_id')['x'].mean()
     tags_g1 = np.array([tag for tag in tags if x_avg[tag] <= x_divide])
