@@ -23,29 +23,31 @@ nrows = 0
 df = csv_read_FA(data_filename, nrows)
 tags = df['tag_id'].unique()
 #%%
-def remove_stationary_tags(df):
+def remove_stationary_tags(df, limit=4e3):
     """
     This function removes performance tags and possibly some cows that are not
     interesting.
 
     Parameters
     ----------
-    df : TYPE
-        DESCRIPTION.
-
+    df : pd.dataframe
+        should be a for one entire day
+    limit: float
+        minimum difference between min and max y to not be removed.
+        
     Returns
     -------
-    df : TYPE
-        DESCRIPTION.
-    stationary_list : TYPE
-        DESCRIPTION.
+    df : pd.dataframe
+        dataframe without tags identified as 'stationary'.
+    stationary_list : list
+        list of tags removed.
 
     """
     y_min_max = df.groupby('tag_id')['y'].agg(['min', 'max'])
 
     y_min_max['diff'] = y_min_max['max'] - y_min_max['min']
 
-    stationary_list = y_min_max.loc[y_min_max['diff'] < 4e3].index.to_list()
+    stationary_list = y_min_max.loc[y_min_max['diff'] < limit].index.to_list()
 
     df = df[~df['tag_id'].isin(stationary_list)]
 
@@ -56,6 +58,25 @@ df_new, stationary_list = remove_stationary_tags(df)
 tags_cow = [tag for tag in tags if tag not in stationary_list]
 #%%
 def time_of_day(start_day, time_to_convert, time_zone=2):
+    """
+    converts time in strange microseconds to time of day based on 
+    first row in data for the day
+
+    Parameters
+    ----------
+    start_day : integer
+        time for first position of the day.
+    time_to_convert : integer
+        time to convert.
+    time_zone : integer, optional
+        DESCRIPTION. 2 for summer time, 1 for normal.
+
+    Returns
+    -------
+    time_of_day : datetime.timedelta
+        A more readable representation of time_to_convert.
+
+    """
     seconds_diff = (time_to_convert-start_day)/1_000
     time_of_day = timedelta(seconds=seconds_diff+time_zone*3_600)
     return time_of_day
@@ -65,7 +86,31 @@ start_day = df['time'].iloc[0]
 
 #%%
 
-def divide_groups(df, tags, x_divide):
+def divide_groups(df, tags, x_divide=1670):
+ """
+    divides cows in two groups
+
+    Parameters
+    ----------
+    df : TYPE
+        DESCRIPTION.
+    tags : TYPE
+        DESCRIPTION.
+    x_divide : integer, optional
+        DESCRIPTION. The default is 1670.
+
+    Returns
+    -------
+    df_g1 : pd.dataframe
+        DESCRIPTION.
+    df_g2 : pd.dataframe
+        DESCRIPTION.
+    tags_g1 : np.array
+        DESCRIPTION.
+    tags_g2 : np.array
+        DESCRIPTION.
+
+    """
     x_avg = df[1_000_000:].groupby('tag_id')['x'].mean()
     tags_g1 = np.array([tag for tag in tags if x_avg[tag] <= x_divide])
     tags_g2 = np.array([tag for tag in tags if x_avg[tag] > x_divide])
@@ -266,22 +311,21 @@ def positions(df, milk_start, barn_filename, minutes_before_start=30, minutes_be
     }
     tags = df['tag_id'].unique()
     cow_dict = {tag:{area:0 for area in area_dict.keys()} for tag in tags}
-    wtf = []
     
     for tag in tags:
         single_cow = df.loc[df['tag_id'] == tag].copy()
-        single_cow['diff'] = single_cow['time'].diff(-1)*(-1/(single_cow['time'].iloc[-1]-single_cow['time'].iloc[0]))
-        single_cow.dropna()
+        single_cow['diff'] = single_cow['time'][::-1].diff()\
+            *(-1/(single_cow['time'].iloc[-1]-single_cow['time'].iloc[0]))
+        single_cow.iloc[-1] = 0
         for row in single_cow.itertuples(index=False):
             pos = (row.x, row.y)
             for area in area_dict.keys():
                 if is_inside(pos, area_dict[area]):
                     cow_dict[tag][area] += row.diff
-                    wtf.append(row.diff)
                     break
         
-    return cow_dict, wtf
-test, wtf = positions(df_g2, milk_start, barn_filename)
+    return cow_dict
+test = positions(df_g2, milk_start, barn_filename)
 
 #%%
 
