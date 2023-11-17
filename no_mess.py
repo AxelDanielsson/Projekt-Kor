@@ -4,14 +4,14 @@ Created on Fri Nov 10 16:24:30 2023
 
 @author: folke
 """
-
+import matplotlib.pyplot as plt
 from pycowview.data import csv_read_FA
 from pycowview.plot import plot_cow
 from pycowview.plot import plot_barn
-from pycowview.animation import animate_cows
-import pandas as pd
+from pycowview.manipulate import is_inside
+import pandas as pd 
 import numpy as np
-import matplotlib.pyplot as plt
+
 from matplotlib.animation import FuncAnimation
 from datetime import datetime, timedelta
 
@@ -24,6 +24,23 @@ df = csv_read_FA(data_filename, nrows)
 tags = df['tag_id'].unique()
 #%%
 def remove_stationary_tags(df):
+    """
+    This function removes performance tags and possibly some cows that are not
+    interesting.
+
+    Parameters
+    ----------
+    df : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    df : TYPE
+        DESCRIPTION.
+    stationary_list : TYPE
+        DESCRIPTION.
+
+    """
     y_min_max = df.groupby('tag_id')['y'].agg(['min', 'max'])
 
     y_min_max['diff'] = y_min_max['max'] - y_min_max['min']
@@ -227,7 +244,48 @@ cum_plot(exit_times)
 
 
 #%%
+def positions(df, milk_start, barn_filename, minutes_before_start=30, minutes_before_end=5):
+    conv = 60_000
+    low_lim = milk_start-minutes_before_start*conv
+    high_lim = milk_start-minutes_before_end*conv    
+    df = df.loc[(df['time'] > low_lim) & 
+                  (df['time'] < high_lim)].copy()
+    
+    barn = pd.read_csv(barn_filename, delimiter=';')
+    area_dict = {
+        'feed1': barn.iloc[1],
+        'feed2': barn.iloc[2],
+        'bed1': barn.iloc[5],
+        'bed2': barn.iloc[6],
+        'bed3': barn.iloc[7],
+        'bed4': barn.iloc[8],
+        'bed5': barn.iloc[9],
+        'bed6': barn.iloc[10],
+        'bed8': barn.iloc[11],
+        'bed9': barn.iloc[12]
+    }
+    tags = df['tag_id'].unique()
+    cow_dict = {tag:{area:0 for area in area_dict.keys()} for tag in tags}
+    wtf = []
+    
+    for tag in tags:
+        single_cow = df.loc[df['tag_id'] == tag].copy()
+        single_cow['diff'] = single_cow['time'].diff(-1)*(-1/(single_cow['time'].iloc[-1]-single_cow['time'].iloc[0]))
+        single_cow.dropna()
+        for row in single_cow.itertuples(index=False):
+            pos = (row.x, row.y)
+            for area in area_dict.keys():
+                if is_inside(pos, area_dict[area]):
+                    cow_dict[tag][area] += row.diff
+                    wtf.append(row.diff)
+                    break
+        
+    return cow_dict, wtf
+test, wtf = positions(df_g2, milk_start, barn_filename)
+
+#%%
 
 plot_cow(df_milk_1, 2417161, barn_filename)
 
+barn = pd.read_csv(barn_filename, skiprows=0, sep=';', header=0)            
 
