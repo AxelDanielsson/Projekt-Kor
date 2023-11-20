@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 
 from matplotlib.animation import FuncAnimation
+from scipy.stats import spearmanr
 from datetime import datetime, timedelta
 
 #%%
@@ -355,7 +356,11 @@ def plot_area(cow_dict, extra_pos, barn_filename):
     
     return
 #plot_area(area_pos, extra_pos, barn_filename)
-
+#%%
+def get_spearman_cor(entry_times, exit_times):
+    spear = spearmanr(list(entry_times.keys()), list(exit_times.keys()))
+    return spear.statistic, spear.pvalue
+spear, pvalue = get_spearman_cor(entry_times, exit_times)
 
 #%%
 
