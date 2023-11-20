@@ -5,7 +5,9 @@ Created on Fri Nov 10 16:24:30 2023
 @author: folke
 """
 import matplotlib.pyplot as plt
-from functions import *
+from pycowview.data import csv_read_FA
+from pycowview.plot import plot_cow
+from pycowview.plot import plot_barn
 import pandas as pd 
 import numpy as np
 
@@ -106,6 +108,7 @@ def divide_groups(df, tags, x_divide=1670):
         DESCRIPTION.
     tags_g2 : np.array
         DESCRIPTION.
+
     """
     x_avg = df[1_000_000:].groupby('tag_id')['x'].mean()
     tags_g1 = np.array([tag for tag in tags if x_avg[tag] <= x_divide])
@@ -292,40 +295,87 @@ def positions(df, milk_start, barn_filename, minutes_before_start=30, minutes_be
     df = df.loc[(df['time'] > low_lim) & 
                   (df['time'] < high_lim)].copy()
     
-    barn = pd.read_csv(barn_filename, delimiter=';')
+    
     area_dict = {
-        'feed1': barn.iloc[1],
-        'feed2': barn.iloc[2],
-        'bed1': barn.iloc[5],
-        'bed2': barn.iloc[6],
-        'bed3': barn.iloc[7],
-        'bed4': barn.iloc[8],
-        'bed5': barn.iloc[9],
-        'bed6': barn.iloc[10],
-        'bed8': barn.iloc[11],
-        'bed9': barn.iloc[12]
+        'upper_middle': [1670, 2482.5, 5851.5, 8738],
+        'upper_right': [2482.5, 3340, 5851.5, 8738],
+        'middle_middle': [1670, 2482.5, 3242.5, 5851.5],
+        'middle_right': [2482.5, 3340, 3242.5, 5851.5],
+        'lower' : [1670, 3340, 2200, 8738]
+       
     }
+    
+    
     tags = df['tag_id'].unique()
-    cow_dict = {tag:{area:0 for area in area_dict.keys()} for tag in tags}
+    cow_dict = {tag:None for tag in tags}
     
     for tag in tags:
         single_cow = df.loc[df['tag_id'] == tag].copy()
-        single_cow['diff'] = single_cow['time'][::-1].diff()\
-            *(-1/(single_cow['time'].iloc[-1]-single_cow['time'].iloc[0]))
-        single_cow.iloc[-1] = 0
-        for row in single_cow.itertuples(index=False):
-            pos = (row.x, row.y)
-            for area in area_dict.keys():
-                if is_inside(pos, area_dict[area]):
-                    cow_dict[tag][area] += row.diff
-                    break
+        pos = (single_cow['x'].mean(), single_cow['y'].mean())
+        for area in area_dict.keys():
+            if is_inside_new(pos, area_dict[area]):
+                cow_dict[tag] = area
+                break
         
     return cow_dict
-test = positions(df_g2, milk_start, barn_filename)
+area_pos = positions(df_g2, milk_start, barn_filename)
+
+
+#%%
+def is_inside_new(pos, area):
+    if area[0] < pos[0] < area[1] and area[2] < pos[1] < area[3]:
+        return True
+    else:
+        return False
+
+
+#%%
+def plot_area(cow_dict, extra_pos, barn_filename):
+    """
+    
+
+   outdated and useless at the moment
+
+    """
+    barn = pd.read_csv(barn_filename, delimiter=';')
+    
+    
+    drop_values = ['Base', 'bed8', 'bed9']
+    barn = barn[~barn['Unit'].isin(drop_values)]
+    for cow in cow_dict.keys():
+        fig, ax = plot_barn(barn_filename)
+        plt.title(f"{cow}")
+        for area in barn[1:].itertuples():
+            x = [area.x1, area.x2, area.x3, area.x4]
+            y = [area.y1, area.y2, area.y3, area.y4]
+            plt.fill(x + [x[0]], y + [y[0]], color='r',
+                     alpha=round(cow_dict[cow][area.Unit], 3))
+        x_extra, y_extra = zip(*extra_pos[cow])
+        plt.scatter(x_extra, y_extra, color='r', alpha=0.5)
+    
+    return
+#plot_area(area_pos, extra_pos, barn_filename)
+
 
 #%%
 
 plot_cow(df_milk_1, 2417161, barn_filename)
 
-barn = pd.read_csv(barn_filename, skiprows=0, sep=';', header=0)            
+barn = pd.read_csv(barn_filename, delimiter=';')
+#%%
+area_dict = {
+     'upper_middle': [1670, 2482.5, 5851.5, 8738],
+     'upper_right': [2482.5, 3340, 5851.5, 8738],
+     'middle_middle': [1670, 2482.5, 3242.5, 5851.5],
+     'middle_right': [2482.5, 3340, 3242.5, 5851.5],
+     'lower' : [1670, 3340, 2200, 8738]    
+ }
+
+fig, ax = plot_barn(barn_filename)
+for area in area_dict:
+    coordinates = area_dict[area]
+    x = [coordinates[0], coordinates[0], coordinates[1], coordinates[1]]
+    y = [coordinates[2], coordinates[3], coordinates[3], coordinates[2]]
+    plt.fill(x + [x[0]], y + [y[0]], alpha=0.5)
+
 
