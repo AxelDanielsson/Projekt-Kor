@@ -243,3 +243,12 @@ def is_inside_new(pos, area):
         return True
     else:
         return False
+    
+    
+    
+    
+def get_number_in_order(times):
+    number_in_order = {tag:None for tag in times.keys()}
+    for i, tag in enumerate(times.keys()):
+        number_in_order[tag] = i+1
+    return number_in_order
