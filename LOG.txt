@@ -20,7 +20,7 @@ kod vi skrivit och lånat på ett snyggare sätt, något vi börjat med i slutet
 
 
 Vecka 47
-
+Gjort hittills:
 Positioner innan mjölkning uppdaterad
 Sammanfattning av dagar
 Rättning av fel i tidigare kod
