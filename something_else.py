@@ -168,7 +168,7 @@ def first_entry(entry_times):
        
 
 
-def positions(df, milk_start, minutes_before_start=30, minutes_before_end=5):
+def positions(df, milk_start,area_dict, minutes_before_start=30, minutes_before_end=5):
         """
         assign each cow to area of barn before milking
 
@@ -196,14 +196,7 @@ def positions(df, milk_start, minutes_before_start=30, minutes_before_end=5):
                       (df['time'] < high_lim)].copy()
         
         
-        area_dict = {
-            'upper_middle': (1670, 2482.5, 5851.5, 8738),
-            'upper_right': (2482.5, 3340, 5851.5, 8738),
-            'middle_middle': (1670, 2482.5, 3242.5, 5851.5),
-            'middle_right': (2482.5, 3340, 3242.5, 5851.5),
-            'lower' : (1670, 3340, 2200, 8738)
-           
-        }
+        
         
         
         tags = df['tag_id'].unique()
@@ -211,8 +204,8 @@ def positions(df, milk_start, minutes_before_start=30, minutes_before_end=5):
         
         for tag in tags:
             single_cow = df.loc[df['tag_id'] == tag].copy()
-            single_cow['diff'] = single_cow['time'][::-1].diff()*(-0.001)
-            single_cow.iloc[-1] = 0
+            #single_cow['diff'] = single_cow['time'][::-1].diff()*(-0.001)
+            #single_cow['diff'].iloc[-1] = 0
             pos = (np.average(single_cow['x']),
                    np.average(single_cow['y']))
             for area in area_dict.keys():
@@ -252,3 +245,59 @@ def get_number_in_order(times):
     for i, tag in enumerate(times.keys()):
         number_in_order[tag] = i+1
     return number_in_order
+
+
+
+
+def summary_dataframe(df, area_dict):
+    morning, evening = milk_window(df)
+      
+      
+    entry_morning, exit_morning = entry_exit(morning)
+    entry_order_morning = get_number_in_order(entry_morning)
+    exit_order_morning = get_number_in_order(exit_morning)
+    
+    entry_evening, exit_evening = entry_exit(evening)
+    entry_order_evening = get_number_in_order(entry_evening)  
+    exit_order_evening = get_number_in_order(exit_evening)  
+    
+    
+    
+    start_morning = first_entry(entry_morning)
+    start_evening = first_entry(entry_evening)
+  
+    
+    pos_morning = positions(df, start_morning, area_dict)
+    pos_evening = positions(df, start_evening, area_dict)
+    
+    
+    
+    
+    common_keys = entry_morning.keys() \
+        & entry_evening.keys() & pos_morning.keys()
+    group_dict = {
+        key: (
+    entry_morning[key],
+    entry_order_morning[key],
+    exit_morning[key],
+    exit_order_morning[key],
+    entry_evening[key],
+    entry_order_evening[key],
+    exit_evening[key],
+    exit_order_evening[key],
+    pos_morning[key],
+    pos_evening[key]
+    )
+    for key in common_keys
+    }
+
+    
+    group_df = pd.DataFrame.from_dict(group_dict, orient='index',
+                    columns=['EntryMorning', 'EntryOrderMorning',
+                             'ExitMorning', 'ExitOrderMorning',
+                             'EntryEvening', 'EntryOrderEvening',
+                             'ExitEvening', 'ExitOrderEvening',
+                             'PositionMorning', 'PositionEvening'])
+    group_df.index.name = 'TagId'
+    
+    return group_df

@@ -6,10 +6,11 @@ Created on Mon Nov 20 13:04:09 2023
 """
 
 from something_else import first_entry, entry_exit, milk_window, divide_groups,\
-    positions, remove_stationary_tags, get_number_in_order
+    positions, remove_stationary_tags, get_number_in_order, summary_dataframe
 from pycowview.data import csv_read_FA
 import os
 import pandas as pd
+from time import perf_counter
 
 
 def main():
@@ -25,61 +26,26 @@ def main():
         df = csv_read_FA(os.path.join(direct, file), nrows)
         df, _ = remove_stationary_tags(df)
         df_group1, df_group2, _, _ = divide_groups(df)
-          
-        group1_morning, group1_evening = milk_window(df_group1)
-        group2_morning, group2_evening = milk_window(df_group2)
-          
-          
-        group1_entry_morning, group1_exit_morning = entry_exit(group1_morning)
-        group1_entry_order_morning = get_number_in_order(group1_entry_morning)
-        group1_exit_order_morning = get_number_in_order(group1_exit_morning)
         
-        group1_entry_evening, group1_exit_evening = entry_exit(group1_evening)
-        group1_entry_order_evening = get_number_in_order(group1_entry_evening)  
-        group1_exit_order_evening = get_number_in_order(group1_exit_evening)  
-        # group2_entry_morning, group2_exit_evening = entry_exit(group2_morning)
-        # group2_entry_evening, group2_exit_evining = entry_exit(group2_evening)
-        
-        
-        group1_start_morning = first_entry(group1_entry_morning)
-        group1_start_evening = first_entry(group1_entry_evening)
-        # group2_start_morning = first_entry(group2_entry_morning)
-        # group2_start_evening = first_entry(group2_entry_evening)
-        
-        group1_pos_morning = positions(df, group1_start_morning)
-        group1_pos_evening = positions(df, group1_start_evening)
-        
-        # group2_pos_morning = positions(df, group2_start_morning)
-        # group2_pos_evening = positions(df, group2_start_evening)
-        
-        
-        common_keys_group1 = group1_entry_morning.keys() \
-            & group1_entry_evening.keys()
-        group1_dict = {
-            key: (
-        group1_entry_morning[key],
-        group1_entry_order_morning[key],
-        group1_exit_morning[key],
-        group1_exit_order_morning[key],
-        group1_entry_evening[key],
-        group1_entry_order_evening[key],
-        group1_exit_evening[key],
-        group1_exit_order_evening[key],
-        group1_pos_morning[key],
-        group1_pos_evening[key]
-        )
-        for key in common_keys_group1
+        area_dict_group1 = {
+            'upper_left': (1670, 2482.5, 5851.5, 8738),
+            'upper_right': (2482.5, 3340, 5851.5, 8738),
+            'middle_left': (1670, 2482.5, 3242.5, 5851.5),
+            'middle_right': (2482.5, 3340, 3242.5, 5851.5),
+            'lower' : (1670, 3340, 2200, 3242.5)
         }
-
-        
-        group1_df = pd.DataFrame.from_dict(group1_dict, orient='index',
-                        columns=['EntryMorning', 'EntryOrderMorning',
-                                 'ExitMorning', 'ExitOrderMorning',
-                                 'EntryEvening', 'EntryOrderEvening',
-                                 'ExitEvening', 'ExitOrderEvening',
-                                 'PositionMorning', 'PositionEvening'])
-        group1_df.index.name = 'TagId'
+        area_dict_group2 = {
+            'upper_left': (0, 881, 5851.5, 8738),
+            'upper_right': (881, 1670, 5851.5, 8738),
+            'middle_middle': (0, 881, 3242.5, 5851.5),
+            'middle_right': (881, 1670, 3242.5, 5851.5),
+            'lower' : (0, 1670, 2200, 3242.5)
+        }
+                  
+        group1_df = summary_dataframe(df_group1, area_dict_group1)
+        group2_df = summary_dataframe(df_group2, area_dict_group2)
         group1_df.to_csv(f"data/group1_summary_{file[3:11]}.csv")
+        group2_df.to_csv(f"data/group2_summary_{file[3:11]}.csv")
         print(f"finished {file}")
         
 if __name__ == "__main__":
