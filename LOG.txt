@@ -1,0 +1,12 @@
+Log group 17
+
+Vecka 44
+Den här veckan har jag och Folke läst posters från tidigare studentprojekt och rapporten "Parity and Days in milk affect cubicle occupancy". 
+Vi har även börjat kolla på den kod som finns tillgänglig i GitHub och testat några första plots med datafilen vi fick över en dag på gården. 
+
+
+Vecka 45
+Den här veckan har Folke och jag arbetat med koden samt haft möte med Ida där vi diskuterade lite frågor kring vad för resultat som är intressant att se och om de vi sett i första försöket på kornas mjölktider var rimligt. 
+Vi har skrivit funktioner för att upptäcka när korna går in till mjölkningen och när dom kommer tillbaka. Jag har haft problem med min laptop och koden men det verkar fungera när jag sitter på Ångström. Vi har också arbetat med att testa kod från tidigare projekt.
+
+Vecka 46
