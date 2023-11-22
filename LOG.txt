@@ -10,3 +10,10 @@ Den här veckan har Folke och jag arbetat med koden samt haft möte med Ida där
 Vi har skrivit funktioner för att upptäcka när korna går in till mjölkningen och när dom kommer tillbaka. Jag har haft problem med min laptop och koden men det verkar fungera när jag sitter på Ångström. Vi har också arbetat med att testa kod från tidigare projekt.
 
 Vecka 46
+I början av veckan jobbade vi med mindre justeringar i att ta fram ordningen till och från mjölkning samt
+sätt att plotta och animera resultaten inför presentation för forskargrupp. Andra halvan av veckan fokuserade
+vi på att ta fram positioner innan mjölkning och värdera feedback som vi fick under mötet med forskargruppen.
+
+Nästa vecka ska vi ha möte med Lars på måndag morgon där vi hoppas diskutera vår metod för att ta fram positioner
+innan mjölkning, vi hoppas också kunna gå vidare och jobba med data från fler dagar. Vi behöver också organisera den
+kod vi skrivit och lånat på ett snyggare sätt, något vi börjat med i slutet av denna vecka.
