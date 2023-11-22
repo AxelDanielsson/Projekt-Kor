@@ -17,3 +17,11 @@ vi på att ta fram positioner innan mjölkning och värdera feedback som vi fick
 Nästa vecka ska vi ha möte med Lars på måndag morgon där vi hoppas diskutera vår metod för att ta fram positioner
 innan mjölkning, vi hoppas också kunna gå vidare och jobba med data från fler dagar. Vi behöver också organisera den
 kod vi skrivit och lånat på ett snyggare sätt, något vi börjat med i slutet av denna vecka.
+
+
+Vecka 47
+
+Positioner innan mjölkning uppdaterad
+Sammanfattning av dagar
+Rättning av fel i tidigare kod
+Spearman
