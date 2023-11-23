@@ -7,6 +7,7 @@ Created on Mon Nov 20 13:15:05 2023
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def remove_stationary_tags(df, limit=4e3):
@@ -73,7 +74,7 @@ def divide_groups(df, x_divide=1670):
     return df_g1, df_g2, tags_g1, tags_g2
 
 
-def milk_window(df, n_splits=48, n_before=2, n_after=4):
+def milk_window(df, n_splits=24, n_before=1, n_after=2):
     """
     Gets time windows for morning and evening for one group.
 
@@ -111,7 +112,7 @@ def milk_window(df, n_splits=48, n_before=2, n_after=4):
     return df_milk_1, df_milk_2
 
 
-def entry_exit(df, x_divide=1670, length=350, y_lim=2100):
+def entry_exit(df, x_divide=1670, length=450, y_lim=2100):
     """
 
     Parameters
@@ -139,18 +140,32 @@ def entry_exit(df, x_divide=1670, length=350, y_lim=2100):
     max_y = df.groupby('tag_id')['y'].max()
     active_tags = [tag for tag in df['tag_id'].unique() 
                    if tag_count[tag] > 1000 and max_y[tag] > 3000]
+    df = df.loc[df['tag_id'].isin(active_tags) == True]
+    
+    entry_mask = (df.y < y_lim) & (df.x < high_lim) & (df.x > low_lim)
+    exit_mask = df.y < 1375
+    
+    df_entry = df.loc[entry_mask].copy()
+    df_exit = df.loc[exit_mask].copy()
+
     entry_times = {tag:None for tag in active_tags}
     exit_times = {tag:None for tag in active_tags}
-    
-    
-    pos_mask = (df.y < y_lim) & (df.x < high_lim) & (df.x > low_lim)
-    df = df.loc[pos_mask]
     for cow in active_tags:    
-        single_cow = df.loc[df['tag_id'] == cow].copy()
-        entry_times[cow] = single_cow['time'].iloc[0]
-        exit_times[cow] = single_cow['time'].iloc[-1]
+        cow_entry = df_entry.loc[df['tag_id'] == cow]
+        cow_exit = df_exit.loc[df['tag_id'] == cow]
+        entry_times[cow] = cow_entry['time'].iloc[0]
+        exit_times[cow] = cow_exit['time'].iloc[-1]
+        if entry_times[cow] + 12e5 > exit_times[cow]:
+            time_bar = cow_entry['time'] >= entry_times[cow] + 12e5
+            cow_exit = cow_entry.loc[time_bar, :]
+            if not cow_exit.empty:
+                exit_times[cow] = cow_exit['time'].iloc[-1]
+            else:
+                exit_times[cow] = np.inf
     sorted_entry = dict(sorted(entry_times.items(), key=lambda x: x[1]))
     sorted_exit = dict(sorted(exit_times.items(), key=lambda x: x[1]))
+    
+    
     return sorted_entry, sorted_exit
 
 
@@ -165,6 +180,9 @@ def first_entry(entry_times):
 
     """
     return next(iter(entry_times.items()))[1]
+
+def last_exit(exit_times):
+    return list(exit_times.values())[-1]
        
 
 
@@ -250,7 +268,7 @@ def get_number_in_order(times):
 
 
 def summary_dataframe(df, area_dict):
-    morning, evening = milk_window(df)
+    morning, evening = milk_window(df, n_before=2, n_after=3)
       
       
     entry_morning, exit_morning = entry_exit(morning)
@@ -261,6 +279,7 @@ def summary_dataframe(df, area_dict):
     entry_order_evening = get_number_in_order(entry_evening)  
     exit_order_evening = get_number_in_order(exit_evening)  
     
+    cum_plot(exit_morning)
     
     
     start_morning = first_entry(entry_morning)
@@ -301,3 +320,15 @@ def summary_dataframe(df, area_dict):
     group_df.index.name = 'TagId'
     
     return group_df
+
+
+def cum_plot(times):
+    conv = 1/(1000*60)
+    times = {key: value for key, value in times.items() if value != np.inf}
+    start = int(first_entry(times)*conv)
+    end = int(last_exit(times)*conv)
+    x = np.linspace(start, end, end-start)
+    y = [sum(value * conv< x_value  for value in times.values()) for x_value in x] 
+    plt.plot(x,y)
+    plt.show()
+    return
