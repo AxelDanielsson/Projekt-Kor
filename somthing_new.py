@@ -16,7 +16,7 @@ def columns_to_datetime(df, column_names, time_zone=2):
 
 
 direct = 'data/'
-prefix = 'group1'
+prefix = 'group2'
 files = [file for file in os.listdir(direct) if file.startswith(prefix)]
 
 week = pd.DataFrame()

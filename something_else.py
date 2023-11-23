@@ -112,7 +112,7 @@ def milk_window(df, n_splits=24, n_before=1, n_after=2):
     return df_milk_1, df_milk_2
 
 
-def entry_exit(df, x_divide=1670, length=450, y_lim=2100):
+def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
     """
 
     Parameters
@@ -145,6 +145,7 @@ def entry_exit(df, x_divide=1670, length=450, y_lim=2100):
     entry_mask = (df.y < y_lim) & (df.x < high_lim) & (df.x > low_lim)
     exit_mask = df.y < 1375
     
+    
     df_entry = df.loc[entry_mask].copy()
     df_exit = df.loc[exit_mask].copy()
 
@@ -156,10 +157,13 @@ def entry_exit(df, x_divide=1670, length=450, y_lim=2100):
         entry_times[cow] = cow_entry['time'].iloc[0]
         exit_times[cow] = cow_exit['time'].iloc[-1]
         if entry_times[cow] + 12e5 > exit_times[cow]:
-            time_bar = cow_entry['time'] >= entry_times[cow] + 12e5
-            cow_exit = cow_entry.loc[time_bar, :]
+            time_bar = (cow_entry['time'] >= entry_times[cow] + 12e5)
+            cow_exit = cow_entry.loc[time_bar & (cow_entry['y'] < 1600), :]
             if not cow_exit.empty:
+                print(f"old {exit_times[cow]}")
                 exit_times[cow] = cow_exit['time'].iloc[-1]
+                print(f"new {exit_times[cow]}")
+                 
             else:
                 exit_times[cow] = np.inf
     sorted_entry = dict(sorted(entry_times.items(), key=lambda x: x[1]))
