@@ -30,13 +30,13 @@ def remove_stationary_tags(df, limit=4e3):
         list of tags removed.
 
     """
-    y_min_max = df.groupby('tag_id')['y'].agg(['min', 'max'])
+    y_min_max = df.groupby('tag_string')['y'].agg(['min', 'max'])
 
     y_min_max['diff'] = y_min_max['max'] - y_min_max['min']
 
     stationary_list = y_min_max.loc[y_min_max['diff'] < limit].index.to_list()
 
-    df = df[~df['tag_id'].isin(stationary_list)]
+    df = df[~df['tag_string'].isin(stationary_list)]
 
     
     return df, stationary_list
@@ -65,12 +65,12 @@ def divide_groups(df, x_divide=1670):
         group 2 tags.
 
     """
-    tags = df['tag_id'].unique()
-    x_avg = df[1_000_000:].groupby('tag_id')['x'].mean()
+    tags = df['tag_string'].unique()
+    x_avg = df[1_000_000:].groupby('tag_string')['x'].mean()
     tags_g1 = np.array([tag for tag in tags if x_avg[tag] >= x_divide])
     tags_g2 = np.array([tag for tag in tags if x_avg[tag] < x_divide])
-    df_g1 = df[df['tag_id'].isin(tags_g1)] 
-    df_g2 = df[df['tag_id'].isin(tags_g2)]
+    df_g1 = df[df['tag_string'].isin(tags_g1)] 
+    df_g2 = df[df['tag_string'].isin(tags_g2)]
     return df_g1, df_g2, tags_g1, tags_g2
 
 
@@ -136,11 +136,11 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
     """
     low_lim = x_divide-length
     high_lim = x_divide+length
-    tag_count = df['tag_id'].value_counts()
-    max_y = df.groupby('tag_id')['y'].max()
-    active_tags = [tag for tag in df['tag_id'].unique() 
+    tag_count = df['tag_string'].value_counts()
+    max_y = df.groupby('tag_string')['y'].max()
+    active_tags = [tag for tag in df['tag_string'].unique() 
                    if tag_count[tag] > 1000 and max_y[tag] > 3000]
-    df = df.loc[df['tag_id'].isin(active_tags) == True]
+    df = df.loc[df['tag_string'].isin(active_tags) == True]
     
     entry_mask = (df.y < y_lim) & (df.x < high_lim) & (df.x > low_lim)
     exit_mask = df.y < 1375
@@ -152,8 +152,8 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
     entry_times = {tag:None for tag in active_tags}
     exit_times = {tag:None for tag in active_tags}
     for cow in active_tags:    
-        cow_entry = df_entry.loc[df['tag_id'] == cow]
-        cow_exit = df_exit.loc[df['tag_id'] == cow]
+        cow_entry = df_entry.loc[df['tag_string'] == cow]
+        cow_exit = df_exit.loc[df['tag_string'] == cow]
         entry_times[cow] = cow_entry['time'].iloc[0]
         exit_times[cow] = cow_exit['time'].iloc[-1]
         if entry_times[cow] + 12e5 > exit_times[cow]:
@@ -165,7 +165,9 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
                 print(f"new {exit_times[cow]}")
                  
             else:
-                exit_times[cow] = np.inf
+                del exit_times[cow]
+                del entry_times[cow]
+                
     sorted_entry = dict(sorted(entry_times.items(), key=lambda x: x[1]))
     sorted_exit = dict(sorted(exit_times.items(), key=lambda x: x[1]))
     
@@ -221,11 +223,11 @@ def positions(df, milk_start,area_dict, minutes_before_start=30, minutes_before_
         
         
         
-        tags = df['tag_id'].unique()
+        tags = df['tag_string'].unique()
         cow_dict = {tag:None for tag in tags}
         
         for tag in tags:
-            single_cow = df.loc[df['tag_id'] == tag].copy()
+            single_cow = df.loc[df['tag_string'] == tag].copy()
             #single_cow['diff'] = single_cow['time'][::-1].diff()*(-0.001)
             #single_cow['diff'].iloc[-1] = 0
             pos = (np.average(single_cow['x']),
@@ -234,7 +236,8 @@ def positions(df, milk_start,area_dict, minutes_before_start=30, minutes_before_
                 if is_inside_new(pos, area_dict[area]):
                     cow_dict[tag] = area
                     break
-            
+            if cow_dict[tag] is None:
+                del cow_dict[tag]
         return cow_dict
 
 def is_inside_new(pos, area):
@@ -280,6 +283,7 @@ def summary_dataframe(df, area_dict):
     exit_order_morning = get_number_in_order(exit_morning)
     
     entry_evening, exit_evening = entry_exit(evening)
+    
     entry_order_evening = get_number_in_order(entry_evening)  
     exit_order_evening = get_number_in_order(exit_evening)  
     
@@ -297,7 +301,7 @@ def summary_dataframe(df, area_dict):
     
     
     common_keys = entry_morning.keys() \
-        & entry_evening.keys() & pos_morning.keys()
+        & entry_evening.keys() & pos_morning.keys() & pos_evening.keys()
     group_dict = {
         key: (
     entry_morning[key],
@@ -321,7 +325,7 @@ def summary_dataframe(df, area_dict):
                              'EntryEvening', 'EntryOrderEvening',
                              'ExitEvening', 'ExitOrderEvening',
                              'PositionMorning', 'PositionEvening'])
-    group_df.index.name = 'TagId'
+    group_df.index.name = 'Tag'
     
     return group_df
 
