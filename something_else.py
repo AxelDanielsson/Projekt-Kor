@@ -160,18 +160,29 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
             time_bar = (cow_entry['time'] >= entry_times[cow] + 12e5)
             cow_exit = cow_entry.loc[time_bar & (cow_entry['y'] < 1600), :]
             if not cow_exit.empty:
-                print(f"old {exit_times[cow]}")
                 exit_times[cow] = cow_exit['time'].iloc[-1]
-                print(f"new {exit_times[cow]}")
+                
                  
             else:
                 del exit_times[cow]
-                del entry_times[cow]
-                
+                del entry_times[cow]        
     sorted_entry = dict(sorted(entry_times.items(), key=lambda x: x[1]))
     sorted_exit = dict(sorted(exit_times.items(), key=lambda x: x[1]))
     
-    
+    items = list(sorted_entry.items())
+    del_list = []
+    for i in range(10,0,-1):
+        prev_value = items[i-1][1]
+        current_value = items[i][1]
+        if prev_value + 3e5 < current_value:
+            for j in range(i):
+                del_list.append(items[j][0])
+            break
+    for tag in del_list:
+        print(f"{tag} deleted")
+        del sorted_entry[tag]
+        del sorted_exit[tag]
+        
     return sorted_entry, sorted_exit
 
 
@@ -287,7 +298,7 @@ def summary_dataframe(df, area_dict):
     entry_order_evening = get_number_in_order(entry_evening)  
     exit_order_evening = get_number_in_order(exit_evening)  
     
-    cum_plot(exit_morning)
+    cum_plot(entry_morning)
     
     
     start_morning = first_entry(entry_morning)
