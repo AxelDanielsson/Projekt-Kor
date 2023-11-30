@@ -30,13 +30,13 @@ def remove_stationary_tags(df, limit=4e3):
         list of tags removed.
 
     """
-    y_min_max = df.groupby('tag_string')['y'].agg(['min', 'max'])
+    y_min_max = df.groupby('tag_id')['y'].agg(['min', 'max'])
 
     y_min_max['diff'] = y_min_max['max'] - y_min_max['min']
 
     stationary_list = y_min_max.loc[y_min_max['diff'] < limit].index.to_list()
 
-    df = df[~df['tag_string'].isin(stationary_list)]
+    df = df[~df['tag_id'].isin(stationary_list)]
 
     
     return df, stationary_list
@@ -65,12 +65,12 @@ def divide_groups(df, x_divide=1670):
         group 2 tags.
 
     """
-    tags = df['tag_string'].unique()
-    x_avg = df[1_000_000:].groupby('tag_string')['x'].mean()
+    tags = df['tag_id'].unique()
+    x_avg = df[1_000_000:].groupby('tag_id')['x'].mean()
     tags_g1 = np.array([tag for tag in tags if x_avg[tag] >= x_divide])
     tags_g2 = np.array([tag for tag in tags if x_avg[tag] < x_divide])
-    df_g1 = df[df['tag_string'].isin(tags_g1)] 
-    df_g2 = df[df['tag_string'].isin(tags_g2)]
+    df_g1 = df[df['tag_id'].isin(tags_g1)] 
+    df_g2 = df[df['tag_id'].isin(tags_g2)]
     return df_g1, df_g2, tags_g1, tags_g2
 
 
@@ -136,11 +136,11 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
     """
     low_lim = x_divide-length
     high_lim = x_divide+length
-    tag_count = df['tag_string'].value_counts()
-    max_y = df.groupby('tag_string')['y'].max()
-    active_tags = [tag for tag in df['tag_string'].unique() 
+    tag_count = df['tag_id'].value_counts()
+    max_y = df.groupby('tag_id')['y'].max()
+    active_tags = [tag for tag in df['tag_id'].unique() 
                    if tag_count[tag] > 1000 and max_y[tag] > 3000]
-    df = df.loc[df['tag_string'].isin(active_tags) == True]
+    df = df.loc[df['tag_id'].isin(active_tags) == True]
     
     entry_mask = (df.y < y_lim) & (df.x < high_lim) & (df.x > low_lim)
     exit_mask = df.y < 1375
@@ -152,8 +152,8 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
     entry_times = {tag:None for tag in active_tags}
     exit_times = {tag:None for tag in active_tags}
     for cow in active_tags:    
-        cow_entry = df_entry.loc[df['tag_string'] == cow]
-        cow_exit = df_exit.loc[df['tag_string'] == cow]
+        cow_entry = df_entry.loc[df['tag_id'] == cow]
+        cow_exit = df_exit.loc[df['tag_id'] == cow]
         entry_times[cow] = cow_entry['time'].iloc[0]
         exit_times[cow] = cow_exit['time'].iloc[-1]
         if entry_times[cow] + 12e5 > exit_times[cow]:
@@ -203,7 +203,7 @@ def last_exit(exit_times):
        
 
 
-def positions(df, milk_start,area_dict, minutes_before_start=30, minutes_before_end=5):
+def positions(df, milk_start, area_dict, minutes_before_start=30, minutes_before_end=20):
         """
         assign each cow to area of barn before milking
 
@@ -234,11 +234,11 @@ def positions(df, milk_start,area_dict, minutes_before_start=30, minutes_before_
         
         
         
-        tags = df['tag_string'].unique()
+        tags = df['tag_id'].unique()
         cow_dict = {tag:None for tag in tags}
         
         for tag in tags:
-            single_cow = df.loc[df['tag_string'] == tag].copy()
+            single_cow = df.loc[df['tag_id'] == tag].copy()
             #single_cow['diff'] = single_cow['time'][::-1].diff()*(-0.001)
             #single_cow['diff'].iloc[-1] = 0
             pos = (np.average(single_cow['x']),
@@ -283,17 +283,47 @@ def get_number_in_order(times):
     return number_in_order
 
 
+def valid_start(df, tag, time, area_dict):
+    pos = positions(df.loc[df['tag_id'] == tag], time, area_dict)
+    if not pos:
+        return False
+    else:
+        return True
+    
+
+
 
 
 def summary_dataframe(df, area_dict):
     morning, evening = milk_window(df, n_before=2, n_after=3)
       
-      
+    
+    
     entry_morning, exit_morning = entry_exit(morning)
+    morning_valid = False
+    while morning_valid is not True:
+        first_key, first_time = next(iter(entry_morning.items()))
+        print(f"Morning start {first_time}")
+        if valid_start(df, first_key, first_time, area_dict):
+            morning_valid = True
+        else:
+            print(f"{first_key} removed")
+            del entry_morning[first_key]
+            del exit_morning[first_key]
     entry_order_morning = get_number_in_order(entry_morning)
     exit_order_morning = get_number_in_order(exit_morning)
     
+    
+    
     entry_evening, exit_evening = entry_exit(evening)
+    evening_valid = False
+    while evening_valid is not True:
+        first_key, first_time = next(iter(entry_evening.items()))
+        if valid_start(df, first_key, first_time, area_dict):
+            evening_valid = True
+        else:
+            del entry_evening[first_key]
+            del exit_evening[first_key]
     
     entry_order_evening = get_number_in_order(entry_evening)  
     exit_order_evening = get_number_in_order(exit_evening)  
@@ -303,7 +333,7 @@ def summary_dataframe(df, area_dict):
     
     start_morning = first_entry(entry_morning)
     start_evening = first_entry(entry_evening)
-  
+    print(f"{start_morning} used")
     
     pos_morning = positions(df, start_morning, area_dict)
     pos_evening = positions(df, start_evening, area_dict)
@@ -311,32 +341,36 @@ def summary_dataframe(df, area_dict):
     
     
     
-    common_keys = entry_morning.keys() \
-        & entry_evening.keys() & pos_morning.keys() & pos_evening.keys()
+    common_keys = entry_morning.keys() or entry_evening.keys() \
+        #& entry_evening.keys() & pos_morning.keys() & pos_evening.keys()
+   
+        
+        
+        
+    
     group_dict = {
-        key: (
-    entry_morning[key],
-    entry_order_morning[key],
-    exit_morning[key],
-    exit_order_morning[key],
-    entry_evening[key],
-    entry_order_evening[key],
-    exit_evening[key],
-    exit_order_evening[key],
-    pos_morning[key],
-    pos_evening[key]
+    key: (
+        entry_morning.get(key, None),
+        entry_order_morning.get(key, None),
+        exit_morning.get(key, None),
+        exit_order_morning.get(key, None),
+        entry_evening.get(key, None),
+        entry_order_evening.get(key, None),
+        exit_evening.get(key, None),
+        exit_order_evening.get(key, None),
+        pos_morning.get(key, None),
+        pos_evening.get(key, None)
     )
     for key in common_keys
     }
 
-    
     group_df = pd.DataFrame.from_dict(group_dict, orient='index',
-                    columns=['EntryMorning', 'EntryOrderMorning',
-                             'ExitMorning', 'ExitOrderMorning',
-                             'EntryEvening', 'EntryOrderEvening',
-                             'ExitEvening', 'ExitOrderEvening',
-                             'PositionMorning', 'PositionEvening'])
-    group_df.index.name = 'Tag'
+                                  columns=['EntryMorning', 'EntryOrderMorning',
+                                           'ExitMorning', 'ExitOrderMorning',
+                                           'EntryEvening', 'EntryOrderEvening',
+                                           'ExitEvening', 'ExitOrderEvening',
+                                           'PositionMorning', 'PositionEvening'])
+    group_df.index.name = 'tag_id'
     
     return group_df
 
