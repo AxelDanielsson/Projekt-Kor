@@ -143,7 +143,7 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
     df = df.loc[df['tag_id'].isin(active_tags) == True]
     
     entry_mask = (df.y < y_lim) & (df.x < high_lim) & (df.x > low_lim)
-    exit_mask = df.y < 1375
+    exit_mask = df.y < 1600 #1375
     
     
     df_entry = df.loc[entry_mask].copy()
@@ -157,8 +157,8 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
         entry_times[cow] = cow_entry['time'].iloc[0]
         exit_times[cow] = cow_exit['time'].iloc[-1]
         if entry_times[cow] + 12e5 > exit_times[cow]:
-            time_bar = (cow_entry['time'] >= entry_times[cow] + 12e5)
-            cow_exit = cow_entry.loc[time_bar & (cow_entry['y'] < 1600), :]
+            #time_bar = (cow_entry['time'] >= entry_times[cow] + 12e5)
+            #cow_exit = cow_entry.loc[time_bar & (cow_entry['y'] < 1600), :]
             if not cow_exit.empty:
                 exit_times[cow] = cow_exit['time'].iloc[-1]
                 
