@@ -20,8 +20,16 @@ kod vi skrivit och lånat på ett snyggare sätt, något vi börjat med i slutet
 
 
 Vecka 47
-Gjort hittills:
-Positioner innan mjölkning uppdaterad
-Sammanfattning av dagar
-Rättning av fel i tidigare kod
-Spearman
+Den här veckan har vi haft ett möte på måndagen tillsammans med Lars där vi pratade om hur vi kunde analysera ordningen korna går in och ut med Spearman korrelation samt hur man kan dela upp ladan i områden för att se om det finns samband mellan var korna befinner sig innan mjölkning och ordningen dom mjölkas.
+
+Vi har fått tillgång till data från fler dagar och har jobbat med att sammanställa resultat från dem och data om korna. Efter feedback från Ida och upptäckt av mindre fel från att vi fått fler dagar att jobba med har vi ändrat till två separata gränser för in och ut tid.
+
+Vi har även börjat skriva lite introduktion och metod i vår rapport.
+
+Nästa vecka har vi tre föreläsningar samt ett möte där vi ska presentera vad vi kommit fram till än så länge och vi kommer att börja veckan med att göra fler statistiska test på våra resultat vi fått fram och andra förberedelser inför mötet. 
+
+Vecka 48
+
+Denna vecka har vi fortsatt att jobba våra metoder och försökt att se hur saker som position innan mjölkning, parity och DIM påverkar ordningen till och från mjölkning och tiden att gå till mjökning. Vi har också fixat problemet som gjorde att koden tog längre tid att köra och tagit fram vilka kor som går in och ut tillsammans. Utöver det var vi också på de obligatoriska föreläsningarna i kursen och börjat strukturera och skriva på fler delar av rapporten.
+
+Planen för nästa vecka är att försöka finalisera metoder och sammantställa resultat inför onsdag då vi har en övning i muntlig presentation och möte med Ida. Efter det hoppas vi kunna börja skriva en del i rapporten och fortsätta jobba med det som anses vara mest intressant.
