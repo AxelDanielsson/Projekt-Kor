@@ -139,8 +139,7 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
     tag_count = df['tag_id'].value_counts()
     max_y = df.groupby('tag_id')['y'].max()
     active_tags = [tag for tag in df['tag_id'].unique() 
-                   if tag_count[tag] > 1000 and max_y[tag] > 3000]
-    df = df.loc[df['tag_id'].isin(active_tags) == True]
+                   if tag_count.get(tag, 0) > 1000 and max_y.get(tag, 0) > 3200]
     
     entry_mask = (df.y < y_lim) & (df.x < high_lim) & (df.x > low_lim)
     exit_mask = df.y < 1600 #1375
@@ -156,16 +155,9 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
         cow_exit = df_exit.loc[df['tag_id'] == cow]
         entry_times[cow] = cow_entry['time'].iloc[0]
         exit_times[cow] = cow_exit['time'].iloc[-1]
-        if entry_times[cow] + 12e5 > exit_times[cow]:
-            #time_bar = (cow_entry['time'] >= entry_times[cow] + 12e5)
-            #cow_exit = cow_entry.loc[time_bar & (cow_entry['y'] < 1600), :]
-            if not cow_exit.empty:
-                exit_times[cow] = cow_exit['time'].iloc[-1]
-                
-                 
-            else:
-                del exit_times[cow]
-                del entry_times[cow]        
+        if entry_times[cow] + 9e5 > exit_times[cow]:
+            del exit_times[cow]
+            del entry_times[cow]        
     sorted_entry = dict(sorted(entry_times.items(), key=lambda x: x[1]))
     sorted_exit = dict(sorted(exit_times.items(), key=lambda x: x[1]))
     
@@ -310,8 +302,7 @@ def summary_dataframe(df, area_dict):
             print(f"{first_key} removed")
             del entry_morning[first_key]
             del exit_morning[first_key]
-    entry_order_morning = get_number_in_order(entry_morning)
-    exit_order_morning = get_number_in_order(exit_morning)
+    
     
     
     
@@ -325,10 +316,9 @@ def summary_dataframe(df, area_dict):
             del entry_evening[first_key]
             del exit_evening[first_key]
     
-    entry_order_evening = get_number_in_order(entry_evening)  
-    exit_order_evening = get_number_in_order(exit_evening)  
+     
     
-    cum_plot(entry_morning)
+    
     
     
     start_morning = first_entry(entry_morning)
@@ -338,8 +328,20 @@ def summary_dataframe(df, area_dict):
     pos_morning = positions(df, start_morning, area_dict)
     pos_evening = positions(df, start_evening, area_dict)
     
+    entry_morning = {tag: value for tag, value in entry_morning.items() 
+                     if pos_morning.get(tag) is not None}
+    exit_morning = {tag: value for tag, value in exit_morning.items() 
+                     if pos_morning.get(tag) is not None}
+    entry_evening =  {tag: value for tag, value in entry_evening.items() 
+                     if pos_evening.get(tag) is not None}
+    exit_evening =  {tag: value for tag, value in exit_evening.items() 
+                     if pos_evening.get(tag) is not None}
     
+    entry_order_evening = get_number_in_order(entry_evening)  
+    exit_order_evening = get_number_in_order(exit_evening) 
     
+    entry_order_morning = get_number_in_order(entry_morning)
+    exit_order_morning = get_number_in_order(exit_morning)
     
     common_keys = entry_morning.keys() or entry_evening.keys() \
         #& entry_evening.keys() & pos_morning.keys() & pos_evening.keys()
@@ -351,13 +353,13 @@ def summary_dataframe(df, area_dict):
     group_dict = {
     key: (
         entry_morning.get(key, None),
-        entry_order_morning.get(key, None),
+        #entry_order_morning.get(key, None),
         exit_morning.get(key, None),
-        exit_order_morning.get(key, None),
+        #exit_order_morning.get(key, None),
         entry_evening.get(key, None),
-        entry_order_evening.get(key, None),
+        #entry_order_evening.get(key, None),
         exit_evening.get(key, None),
-        exit_order_evening.get(key, None),
+        #exit_order_evening.get(key, None),
         pos_morning.get(key, None),
         pos_evening.get(key, None)
     )
@@ -365,10 +367,10 @@ def summary_dataframe(df, area_dict):
     }
 
     group_df = pd.DataFrame.from_dict(group_dict, orient='index',
-                                  columns=['EntryMorning', 'EntryOrderMorning',
-                                           'ExitMorning', 'ExitOrderMorning',
-                                           'EntryEvening', 'EntryOrderEvening',
-                                           'ExitEvening', 'ExitOrderEvening',
+                                  columns=['EntryMorning', 
+                                           'ExitMorning', 
+                                           'EntryEvening', 
+                                           'ExitEvening', 
                                            'PositionMorning', 'PositionEvening'])
     group_df.index.name = 'tag_id'
     

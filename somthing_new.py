@@ -7,12 +7,13 @@ Created on Wed Nov 22 02:46:04 2023
 
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import os
 from scipy.stats import spearmanr
 from scipy.stats import ttest_1samp
 from scipy.stats import f_oneway
 from collections import Counter
-
+#%% 
 def columns_to_datetime(df, column_names, time_zone=2):
     for column in column_names:
         df[column] = pd.to_datetime(df[column]+(3.6e6*time_zone), unit='ms').dt.time
@@ -56,20 +57,61 @@ def nearby_cows(df, tag, morning, limit=5000):
     return entry_list, exit_list
 
 
+def order(df, sort_column, order_column, pos_column):
+    df = df.sort_values(by=sort_column)
+    df[order_column] = 0
+    count = 1 
+    for index, row in df.iterrows():
+        if row[pos_column] is not None:
+            df.at[index, order_column] = count
+            count += 1
+        else:
+            df.at[index, order_column] = None
+    return df
+    
+
+
 #%%
 direct = 'data/'
-prefix = 'group1'
+prefix = 'group2'
 files = [file for file in os.listdir(direct) if file.startswith(prefix)]
+
+
+if prefix == 'group2':
+    area_dict = {
+        'upper_left': (1670, 2482.5, 5851.5, 8738),
+        'upper_right': (2482.5, 3340, 5851.5, 8738),
+        'middle_left': (1670, 2482.5, 3242.5, 5851.5),
+        'middle_right': (2482.5, 3340, 3242.5, 5851.5),
+        'lower_left' : (1670, 2482.5, 2100, 3242.5),
+        'lower_right' : (2482.5, 3340, 2595, 3242.5)
+    }
+else:
+    area_dict = {
+        'upper_left': (0, 881, 5851.5, 8738),
+        'upper_right': (881, 1670, 5851.5, 8738),
+        'middle_left': (0, 881, 3242.5, 5851.5),
+        'middle_right': (881, 1670, 3242.5, 5851.5),
+        'lower_left' : (0, 881, 2100, 3242.5), 
+        'lower_right': (881, 1670, 2595, 3242.5)
+    }
 
 
 week = pd.DataFrame()
 tag_conv = pd.read_csv('data/tag_conv.csv')
-#week = pd.concat([pd.read_csv(os.path.join(direct, file)) for file in files],
-                 #ignore_index=True)
+
 for file in files:
     temp = pd.read_csv(os.path.join(direct, file))
+    #date to merge with CowInfo
     temp['MilkingDate'] = f"{file[15:19]}-{file[19:21]}-{file[21:23]}"
     
+    
+    
+    #minutes between cow entering and exiting
+    temp['MorningMinutes'] = (temp['ExitMorning']-temp['EntryMorning'])*1.666e-5
+    temp['EveningMinutes'] = (temp['ExitEvening']-temp['EntryEvening'])*1.666e-5
+    
+    #find cows entering or leaving together
     temp['NearbyMorningEntry'], temp['NearbyMorningExit'] = \
         zip(*[nearby_cows(temp, tag, True) for tag in temp['tag_id']])
     temp['NearbyEveningEntry'], temp['NearbyEveningExit'] = \
@@ -77,15 +119,29 @@ for file in files:
     temp = columns_to_datetime(temp,
                               ['EntryMorning', 'ExitMorning', 
                                'EntryEvening', 'ExitEvening'])
-    
+
+    #time after the first cow enters
     temp = temp.sort_values(by='EntryMorning')
     first_entry = time_to_seconds(temp['EntryMorning'].iloc[0]) 
-    temp['TimeAfterEntry'] = temp['EntryMorning'].apply(lambda x:
+    temp['SecondsAfterMorning'] = temp['EntryMorning'].apply(lambda x:
                                                  (x.hour * 3600 + x.minute \
                                                   * 60 + x.second - first_entry)).to_list()
+    
+    temp = temp.sort_values(by='EntryEvening')
+    first_entry = time_to_seconds(temp['EntryEvening'].iloc[0]) 
+    temp['SecondsAfterEvening'] = temp['EntryEvening'].apply(lambda x:
+                                                 (x.hour * 3600 + x.minute \
+                                                  * 60 + x.second - first_entry)).to_list()
+    
+    temp = order(temp, 'ExitEvening', 'ExitOrderEvening', 'PositionEvening')    
+    temp = order(temp, 'EntryEvening', 'EntryOrderEvening', 'PositionEvening')    
+    temp = order(temp, 'ExitMorning', 'ExitOrderMorning', 'PositionMorning')    
+    temp = order(temp, 'EntryMorning', 'EntryOrderMorning', 'PositionMorning')
+    
+    #add day to week
     week = pd.concat([week, temp], ignore_index=True)
     
-
+#merge with CowInfo
 cow_info = pd.read_csv('data/CowInfo.csv')
 week = pd.merge(week, tag_conv, on='tag_id')
 week = pd.merge(week, cow_info, left_on=['tag_string', 'MilkingDate'], right_on=['Tag', 'MilkingDate'])
@@ -93,8 +149,7 @@ week = pd.merge(week, cow_info, left_on=['tag_string', 'MilkingDate'], right_on=
 
 
 
-#week['MorningMinutes'] = (week['ExitMorning']-week['EntryMorning'])*1.666e-5
-#week['EveningMinutes'] = (week['ExitEvening']-week['EntryEvening'])*1.666e-5
+
 
 #%%
 time_mean = week['TimeAfterEntry'].mean()
@@ -110,58 +165,90 @@ f_oneway(week.loc[week['PositionMorning'] == 'lower_left']['TimeAfterEntry'].to_
 
 
 #%%
-chosen_date = '2020-09-19'
-
-day = week.loc[week['MilkingDate'] == chosen_date].copy()
-day_mean = day['TimeAfterEntry'].mean()
 
 ttest_1samp(day.loc[day['PositionMorning'].isin(['lower_left', 'lower_right'])]['TimeAfterEntry'].to_list(), day_mean)
 #ttest_1samp(week.loc[week['PositionMorning'] == 'lower_right']['TimeAfterEntry'], day_mean)
   
     
- #%%   
-    
-means = []
-for key in area_dict.keys():
-    means.append(week.loc[week['PositionMorning'] == key]['TimeAfterEntry'].mean())
+#%%   
+# Time after entry boxplot area
+lists_to_plot = []
+keys = list(area_dict.keys())
+for key in keys:
+    temp_list = [time for time in week.loc[week['PositionMorning'] == key]['SecondsAfterMorning'].to_list() if time < 2000]
+    temp_list += [time for time in week.loc[week['PositionEvening'] == key]['SecondsAfterEvening'].to_list() if time < 2000]
+    lists_to_plot.append(temp_list)
+lists_to_plot[-2] = lists_to_plot[-2] + lists_to_plot[-1]
+lists_to_plot.pop(-1)
+#sns.violinplot(data=lists_to_plot)
+plt.boxplot(lists_to_plot, showfliers=False, whiskerprops=dict(linestyle='-', linewidth=1.5, color='black', solid_capstyle='round'))
+plt.title(f"Seconds passed after the first cow enters {prefix}", fontsize=14)
+plt.ylabel('Seconds')
+plt.xlabel('Part of the barn')
+plt.xticks([1, 2, 3, 4, 5], [keys[0], keys[1], keys[2], keys[3], 'lower'], fontsize=10)
+plt.gca().set_facecolor('whitesmoke')
 
-plt.bar(list(area_dict.keys()), means)
-plt.title('Comparison of seconds passed after first cow enters')
-plt.ylabel('Mean seconds after first entry')
-plt.xlabel('Part of barn')
-plt.xticks(fontsize=8)
+
+ttest_1samp(lists_to_plot[-1], (week['SecondsAfterMorning'].mean()+week['SecondsAfterEvening'].mean())/2)
+#%%
+# Time after entry boxplot parity
+
+masks = [week.Parity == 1, week.Parity == 2, week.Parity == 3, week.Parity > 3]
+
+lists_to_plot = []
+
+
+for mask in masks:
+    temp_list = [time for time in week.loc[mask, 'SecondsAfterMorning'].to_list() 
+                 if time < 2000]
+    temp_list += [time for time in week.loc[mask, 'SecondsAfterEvening'].to_list() 
+                  if time < 2000]
+    lists_to_plot.append(temp_list)
+
+
+plt.boxplot(lists_to_plot, showfliers=True, whiskerprops=dict(linestyle='-', linewidth=1.5, color='black', solid_capstyle='round'))
+plt.title(f"Seconds passed after first entry {prefix}", fontsize=14)
+plt.ylabel('Seconds')
+plt.xlabel('Parity')
+plt.xticks([1, 2, 3, 4], ['1', '2', '3', '4+'], fontsize=12)
+plt.gca().set_facecolor('whitesmoke')
+
 
 #%%
+masks = [week.Parity == 1, week.Parity == 2, week.Parity == 3, week.Parity > 3]
 
-areas = [
-    week.loc[week['PositionMorning'] == 'upper_right']['TimeAfterEntry'].to_list(),
-    week.loc[week['PositionMorning'] == 'upper_left']['TimeAfterEntry'].to_list(),
-    week.loc[week['PositionMorning'] == 'middle_right']['TimeAfterEntry'].to_list(),
-    week.loc[week['PositionMorning'] == 'middle_left']['TimeAfterEntry'].to_list(),
-    week.loc[week['PositionMorning'] == 'lower_right']['TimeAfterEntry'].to_list(),
-    week.loc[week['PositionMorning'] == 'lower_left']['TimeAfterEntry'].to_list(),
-    ]
-plt.boxplot(areas)
-plt.title('Comparison of seconds passed after first cow enters')
-plt.xlabel('Part of barn')
-plt.ylabel('Seconds after first entry')
-plt.ylim([-5,2000])
-plt.xticks([1, 2, 3, 4, 5, 6], list(area_dict.keys()), fontsize=8)
+lists_to_plot = []
+
+
+for mask in masks:
+    temp_list = week.loc[mask, 'MorningMinutes'].dropna().to_list() + \
+        week.loc[mask, 'EveningMinutes'].dropna().to_list()
+    lists_to_plot.append(temp_list)
+
+
+plt.boxplot(lists_to_plot)
+plt.ylabel('Minutes')
+plt.xlabel('Parity')
+plt.xticks([1, 2, 3, 4], ['1', '2', '3', '4+'], fontsize=12)
+plt.gca().set_facecolor('whitesmoke')
+
+
 
 #%%
-fig, ax = plt.subplots()
+df_density = week.dropna()
+dim = df_density['DIM'].to_list() * 2
+time = df_density['MorningMinutes'].to_list() + df_density['EveningMinutes'].to_list()
 
-for area in area_dict.keys():
-    ax.scatter(week.loc[week['PositionMorning'] == area]['Parity'], week.loc[week['PositionMorning'] == area]['TimeAfterEntry'], label=area)
+sns.kdeplot(x=df_density['DIM'].to_list(), y=df_density['MorningMinutes'].to_list(), cmap="Blues", fill=True, thresh=0, levels=100)
+plt.scatter(df_density['DIM'].to_list(), df_density['MorningMinutes'].to_list())
 
-ax.set_xlabel('DIM')  # Replace with your actual x-axis label
-ax.set_ylabel('Time After Entry')  # Replace with your actual y-axis label
-ax.legend()
 #%%
 mean_order = week.groupby('Tag')[
     ['EntryOrderMorning', 'ExitOrderMorning',
       'EntryOrderEvening', 'ExitOrderEvening',
        'Parity', 'DIM']].mean()
+mean_order['AvgChange'] = (mean_order['EntryOrderMorning'] + mean_order['EntryOrderEvening'] \
+    - mean_order['ExitOrderMorning'] -mean_order['ExitOrderEvening'])*0.5
 nearby_entry = {tag:[] for tag in week['tag_id'].unique()}
 nearby_exit = {tag:[] for tag in week['tag_id'].unique()} 
 
