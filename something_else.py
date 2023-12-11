@@ -137,9 +137,13 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
     low_lim = x_divide-length
     high_lim = x_divide+length
     tag_count = df['tag_id'].value_counts()
-    max_y = df.groupby('tag_id')['y'].max()
-    active_tags = [tag for tag in df['tag_id'].unique() 
-                   if tag_count.get(tag, 0) > 1000 and max_y.get(tag, 0) > 3200]
+    n_rows = len(df)
+    max_y1 = df[:round(n_rows/2)].groupby('tag_id')['y'].max()
+    max_y2 = df[round(n_rows/2):].groupby('tag_id')['y'].max()
+    tags = df['tag_id'].unique()
+    active_tags = [tag for tag in tags
+                   if tag_count.get(tag, 0) > 1000 and max_y1.get(tag, 0) > 3000 
+                   and max_y2.get(tag, 0) > 3000]
     
     entry_mask = (df.y < y_lim) & (df.x < high_lim) & (df.x > low_lim)
     exit_mask = df.y < 1600 #1375
@@ -156,6 +160,7 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
         entry_times[cow] = cow_entry['time'].iloc[0]
         exit_times[cow] = cow_exit['time'].iloc[-1]
         if entry_times[cow] + 9e5 > exit_times[cow]:
+            print(f"deleted {cow} no valid exit")
             del exit_times[cow]
             del entry_times[cow]        
     sorted_entry = dict(sorted(entry_times.items(), key=lambda x: x[1]))
@@ -171,7 +176,7 @@ def entry_exit(df, x_divide=1670, length=500, y_lim=2100):
                 del_list.append(items[j][0])
             break
     for tag in del_list:
-        print(f"{tag} deleted")
+        print(f"{tag} deleted too early")
         del sorted_entry[tag]
         del sorted_exit[tag]
         
@@ -240,6 +245,7 @@ def positions(df, milk_start, area_dict, minutes_before_start=30, minutes_before
                     cow_dict[tag] = area
                     break
             if cow_dict[tag] is None:
+                print(f"{tag} deleted no position")
                 del cow_dict[tag]
         return cow_dict
 
@@ -295,7 +301,7 @@ def summary_dataframe(df, area_dict):
     morning_valid = False
     while morning_valid is not True:
         first_key, first_time = next(iter(entry_morning.items()))
-        print(f"Morning start {first_time}")
+    
         if valid_start(df, first_key, first_time, area_dict):
             morning_valid = True
         else:
@@ -320,10 +326,9 @@ def summary_dataframe(df, area_dict):
     
     
     
-    
+    cum_plot(entry_morning)
     start_morning = first_entry(entry_morning)
     start_evening = first_entry(entry_evening)
-    print(f"{start_morning} used")
     
     pos_morning = positions(df, start_morning, area_dict)
     pos_evening = positions(df, start_evening, area_dict)
@@ -337,11 +342,6 @@ def summary_dataframe(df, area_dict):
     exit_evening =  {tag: value for tag, value in exit_evening.items() 
                      if pos_evening.get(tag) is not None}
     
-    entry_order_evening = get_number_in_order(entry_evening)  
-    exit_order_evening = get_number_in_order(exit_evening) 
-    
-    entry_order_morning = get_number_in_order(entry_morning)
-    exit_order_morning = get_number_in_order(exit_morning)
     
     common_keys = entry_morning.keys() or entry_evening.keys() \
         #& entry_evening.keys() & pos_morning.keys() & pos_evening.keys()

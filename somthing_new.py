@@ -13,6 +13,7 @@ from scipy.stats import spearmanr
 from scipy.stats import ttest_1samp
 from scipy.stats import f_oneway
 from collections import Counter
+from pandas.plotting import parallel_coordinates
 #%% 
 def columns_to_datetime(df, column_names, time_zone=2):
     for column in column_names:
@@ -73,18 +74,25 @@ def order(df, sort_column, order_column, pos_column):
 
 #%%
 direct = 'data/'
-prefix = 'group2'
+prefix = 'group1'
 files = [file for file in os.listdir(direct) if file.startswith(prefix)]
 
 
-if prefix == 'group2':
+if prefix == 'group1':
     area_dict = {
         'upper_left': (1670, 2482.5, 5851.5, 8738),
         'upper_right': (2482.5, 3340, 5851.5, 8738),
         'middle_left': (1670, 2482.5, 3242.5, 5851.5),
         'middle_right': (2482.5, 3340, 3242.5, 5851.5),
-        'lower_left' : (1670, 2482.5, 2100, 3242.5),
-        'lower_right' : (2482.5, 3340, 2595, 3242.5)
+        'lower' : (1670, 3340, 2595, 3242.5)
+    }
+    
+    area_colors_2 = {
+        'Upper right': 'green',
+        'Upper left': 'blue',
+        'Middle right': 'purple',
+        'Middle left': 'red',
+        'Lower': 'orange'
     }
 else:
     area_dict = {
@@ -92,8 +100,14 @@ else:
         'upper_right': (881, 1670, 5851.5, 8738),
         'middle_left': (0, 881, 3242.5, 5851.5),
         'middle_right': (881, 1670, 3242.5, 5851.5),
-        'lower_left' : (0, 881, 2100, 3242.5), 
-        'lower_right': (881, 1670, 2595, 3242.5)
+        'lower': (0, 1670, 2595, 3242.5)
+    }
+    area_colors = {
+        'Upper right': 'blue',
+        'Upper left': 'green',
+        'Middle right': 'red',
+        'Middle left': 'purple',
+        'Lower': 'orange'
     }
 
 
@@ -145,9 +159,13 @@ for file in files:
 cow_info = pd.read_csv('data/CowInfo.csv')
 week = pd.merge(week, tag_conv, on='tag_id')
 week = pd.merge(week, cow_info, left_on=['tag_string', 'MilkingDate'], right_on=['Tag', 'MilkingDate'])
+week['Parity'] = week['Parity'].apply(lambda x: 3 if x > 3 else x)
+week['DIM'] = week['DIM'].apply(lambda x: 'Early' if x < 50 else ('Late' if x > 149 else 'Mid'))
+lower_mask = week['PositionMorning'].isin(['lower_left', 'lower_right'])
+week.loc[lower_mask, 'PositionMorning'] = 'lower'
 
-
-
+lower_mask = week['PositionEvening'].isin(['lower_left', 'lower_right'])
+week.loc[lower_mask, 'PositionEvening'] = 'lower'
 
 
 
@@ -178,30 +196,37 @@ for key in keys:
     temp_list = [time for time in week.loc[week['PositionMorning'] == key]['SecondsAfterMorning'].to_list() if time < 2000]
     temp_list += [time for time in week.loc[week['PositionEvening'] == key]['SecondsAfterEvening'].to_list() if time < 2000]
     lists_to_plot.append(temp_list)
-lists_to_plot[-2] = lists_to_plot[-2] + lists_to_plot[-1]
-lists_to_plot.pop(-1)
-#sns.violinplot(data=lists_to_plot)
-plt.boxplot(lists_to_plot, showfliers=False, whiskerprops=dict(linestyle='-', linewidth=1.5, color='black', solid_capstyle='round'))
-plt.title(f"Seconds passed after the first cow enters {prefix}", fontsize=14)
+
+ax = sns.violinplot(data=lists_to_plot, palette=area_colors.values(), cut=0, bw=0.2)
+#plt.boxplot(lists_to_plot, showfliers=False, whiskerprops=dict(linestyle='-', linewidth=1.5, color='black', solid_capstyle='round'))
+
+for i, artist in enumerate(ax.collections):
+    # Calculate the number of samples in each category
+    total_samples = len(lists_to_plot[i])
+    
+    # Display the sample count above the violin plot
+    ax.text(i+0.3, ax.get_ylim()[1] -75, f'n={total_samples}', ha='left', va='center')
+
+plt.title(f"Time passed after the first cow enters, {prefix[:-1]} {prefix[-1]}", fontsize=14)
 plt.ylabel('Seconds')
 plt.xlabel('Part of the barn')
-plt.xticks([1, 2, 3, 4, 5], [keys[0], keys[1], keys[2], keys[3], 'lower'], fontsize=10)
+plt.xticks([0, 1, 2, 3, 4], area_colors.keys(), fontsize=10)
 plt.gca().set_facecolor('whitesmoke')
 
 
-ttest_1samp(lists_to_plot[-1], (week['SecondsAfterMorning'].mean()+week['SecondsAfterEvening'].mean())/2)
+#ttest_1samp(lists_to_plot[-1], (week['SecondsAfterMorning'].mean()+week['SecondsAfterEvening'].mean())/2)
 #%%
 # Time after entry boxplot parity
 
-masks = [week.Parity == 1, week.Parity == 2, week.Parity == 3, week.Parity > 3]
+masks = [week.Parity == 1, week.Parity == 2, week.Parity >= 3]
 
 lists_to_plot = []
 
 
 for mask in masks:
-    temp_list = [time for time in week.loc[mask, 'SecondsAfterMorning'].to_list() 
+    temp_list = [time for time in week.loc[mask, 'SecondsAfterMorning'].dropna().to_list() 
                  if time < 2000]
-    temp_list += [time for time in week.loc[mask, 'SecondsAfterEvening'].to_list() 
+    temp_list += [time for time in week.loc[mask, 'SecondsAfterEvening'].dropna().to_list() 
                   if time < 2000]
     lists_to_plot.append(temp_list)
 
@@ -214,8 +239,8 @@ plt.xticks([1, 2, 3, 4], ['1', '2', '3', '4+'], fontsize=12)
 plt.gca().set_facecolor('whitesmoke')
 
 
-#%%
-masks = [week.Parity == 1, week.Parity == 2, week.Parity == 3, week.Parity > 3]
+#%% 
+masks = [week.Parity == 1, week.Parity == 2, week.Parity == 3]
 
 lists_to_plot = []
 
@@ -229,9 +254,26 @@ for mask in masks:
 plt.boxplot(lists_to_plot)
 plt.ylabel('Minutes')
 plt.xlabel('Parity')
-plt.xticks([1, 2, 3, 4], ['1', '2', '3', '4+'], fontsize=12)
+plt.xticks([1, 2, 3], ['1', '2', '3+'], fontsize=12)
 plt.gca().set_facecolor('whitesmoke')
+#%%
 
+masks = [week.DIM == 'Early', week.DIM == 'Mid', week.DIM == 'Late']
+
+lists_to_plot = []
+
+
+for mask in masks:
+    temp_list = week.loc[mask, 'NearbyMorningEntry'].dropna().apply(len).to_list() + \
+        week.loc[mask, 'NearbyEveningEntry'].dropna().apply(len).to_list()
+    lists_to_plot.append(temp_list)
+
+ax = plt.boxplot(lists_to_plot)
+plt.ylabel('Number of cows nearby')
+plt.xlabel('DIM')
+plt.xticks([1, 2, 3], ['Early', 'Mid', 'Late'], fontsize=12)
+plt.gca().set_facecolor('whitesmoke')
+plt.title(f"Number of nearby cows when entering the milking parlour")
 
 
 #%%
@@ -249,8 +291,10 @@ mean_order = week.groupby('Tag')[
        'Parity', 'DIM']].mean()
 mean_order['AvgChange'] = (mean_order['EntryOrderMorning'] + mean_order['EntryOrderEvening'] \
     - mean_order['ExitOrderMorning'] -mean_order['ExitOrderEvening'])*0.5
+    
+    
 nearby_entry = {tag:[] for tag in week['tag_id'].unique()}
-nearby_exit = {tag:[] for tag in week['tag_id'].unique()} 
+nearby_exit = {tag:[] for tag in week['tag_id'].unique()}
 
 for tag in nearby_entry.keys():
     single_cow = week.loc[week['tag_id'] == tag]
@@ -269,3 +313,66 @@ for cow, exit_tags in nearby_exit.items():
     plt.bar(unique_values, frequencies)
     plt.title(cow)
     plt.show()
+#%% Parallel coordinates 
+
+masks = [week.Parity == 1, week.Parity == 2, week.Parity > 3]
+
+lists_to_plot = []
+
+
+for index, mask in enumerate(masks):
+    df_par = week.loc[mask].copy()
+    unique = df_par['tag_id'].unique()
+    lists_to_plot.append([])
+    for tag in unique:
+        single_cow = df_par.loc[df_par['tag_id'] == tag].copy()
+        if len(single_cow) == len(files):
+            lists_to_plot[index].append(single_cow['EntryOrderEvening'].to_list())
+            
+color_list = ['black', 'black', 'red', 'red']            
+
+for index, parity in enumerate(lists_to_plot):
+    for cow in parity:           
+        sns.lineplot(x=[1, 2, 3, 4, 5, 6, 7], y=cow, color=color_list[index], )
+            
+#%% super plot
+
+sns.set_theme()
+
+# Load the penguins dataset
+par=1
+# Plot sepal width as a function of sepal_length across days
+g = sns.lmplot(
+    data=week,
+    x="EntryOrderEvening", y="ExitOrderEvening", 
+    scatter_kws={'s': 8}, order=1, hue='DIM'
+)
+
+# Use more informative axis labels than are provided by default
+g.set_axis_labels("Entry Order", "Exit Order")
+
+#%%
+area_times = {key: pd.DataFrame() for key in area_dict.keys()}
+for key in area_times:
+    morning_data = week.loc[week['PositionMorning'] == key]
+    evening_data = week.loc[week['PositionEvening'] == key]
+    
+    area_times[key] = pd.concat([area_times[key], morning_data, evening_data], ignore_index=True)
+fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(12, 8))
+
+# Flatten the 2D array of axes for easier indexing
+axes = axes.flatten()
+
+# Plot histograms on each subplot
+for area in area_times:
+    sns.boxplot(data)
+
+# Set titles for each subplot
+axes[0].set_title('Histogram 1')
+axes[1].set_title('Histogram 2')
+axes[2].set_title('Histogram 3')
+axes[3].set_title('Histogram 4')
+axes[4].set_title('Histogram 5')
+
+# Adjust layout for better spacing
+plt.tight_layout()

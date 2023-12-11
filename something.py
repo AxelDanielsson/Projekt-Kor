@@ -31,7 +31,7 @@ def main():
             'upper_right': (2482.5, 3340, 5851.5, 8738),
             'middle_left': (1670, 2482.5, 3242.5, 5851.5),
             'middle_right': (2482.5, 3340, 3242.5, 5851.5),
-            'lower_left' : (1670, 2482.5, 2100, 3242.5),
+            'lower_left' : (1670, 2482.5, 2000, 3242.5),
             'lower_right' : (2482.5, 3340, 2595, 3242.5)
         }
         area_dict_group2 = {
@@ -39,11 +39,12 @@ def main():
             'upper_right': (881, 1670, 5851.5, 8738),
             'middle_left': (0, 881, 3242.5, 5851.5),
             'middle_right': (881, 1670, 3242.5, 5851.5),
-            'lower_left' : (0, 881, 2100, 3242.5), 
+            'lower_left' : (0, 881, 2000, 3242.5), 
             'lower_right': (881, 1670, 2595, 3242.5)
         }
-                  
+        print('Group 1')
         group1_df = summary_dataframe(df_group1, area_dict_group1)
+        print('Group 2')
         group2_df = summary_dataframe(df_group2, area_dict_group2)
         group1_df.to_csv(f"data/group1_summary_{file[3:11]}.csv")
         group2_df.to_csv(f"data/group2_summary_{file[3:11]}.csv")
