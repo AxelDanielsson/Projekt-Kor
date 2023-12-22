@@ -33,3 +33,12 @@ Vecka 48
 Denna vecka har vi fortsatt att jobba våra metoder och försökt att se hur saker som position innan mjölkning, parity och DIM påverkar ordningen till och från mjölkning och tiden att gå till mjökning. Vi har också fixat problemet som gjorde att koden tog längre tid att köra och tagit fram vilka kor som går in och ut tillsammans. Utöver det var vi också på de obligatoriska föreläsningarna i kursen och börjat strukturera och skriva på fler delar av rapporten.
 
 Planen för nästa vecka är att försöka finalisera metoder och sammantställa resultat inför onsdag då vi har en övning i muntlig presentation och möte med Ida. Efter det hoppas vi kunna börja skriva en del i rapporten och fortsätta jobba med det som anses vara mest intressant.
+
+Vecka 49
+Den här veckan har vi jobbat på en presentation till Stefan och Kristina Lund som gett oss feedback på vår presentationsteknik. Vi har gjort ett skelett för rapporten och fortsatt med teori och metod. Vi har även tittat på om det går att hitta samband mellan kor som är kompisar och går in tillsammans och går ut tillsammans. Sen har vi också testat olika typer av plots för att visualisera resultaten.
+
+Vecka 50
+Den här veckan har vi varit på studiebesök på Lövsta forskningscentrum och fått se hur dom arbetar med kor, utrustning och fått träffa korna. Vi har haft ett möte med Ida där vi diskuterade hur vi ska hantera kor i datan som sticker ut/noise samt fått feedback på dom plots och grafer som tagits fram.  I koden har fokus mest legat på att göra bra plots att ha med i rapporten som vi har börjat skriva mer på och vi siktar på att ha ett första utkast till på måndag. Vi har även börjat prata lite om hur vi ska göra våran poster.
+
+Vecka 51
+Den här veckan har vi fått feedback på vårt första utkast av rapporten och jobbat vidare med den utifrån det. Vi har påbörjat postern och diskuterat vad som är bra att ha med på den. 
